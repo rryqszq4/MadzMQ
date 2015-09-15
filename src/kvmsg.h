@@ -5,6 +5,10 @@
 extern "C" {
 #endif
 
+#include "czmq.h"
+
+typedef struct _kvmsg kvmsg_t;
+
 kvmsg_t *kvmsg_new(int64_t sequence);
 void kvmsg_destroy(kvmsg_t **self_p);
 
