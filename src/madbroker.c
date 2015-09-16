@@ -1,8 +1,14 @@
+#include "bstar.h"
 #include "kvmsg.h"
+
 
 static int m_snapshots(zloop_t *loop, zmq_pollitem_t *poller, void *args);
 static int m_collector(zloop_t *loop, zmq_pollitem_t *poller, void *args);
 static int m_flush_ttl(zloop_t *loop, int timer_id, void *args);
+static int m_send_hugz(zloop_t *loop, int timer_id, void *args);
+static int m_new_active(zloop_t *loop, zmq_pollitem_t *poller, void *args);
+static int m_new_passive(zloop_t *loop, zmq_pollitem_t *poller, void *args);
+static int m_subscriber(zloop_t *loop, zmq_pollitem_t *poller, void *args);
 
 typedef struct {
 	zctx_t *ctx;
