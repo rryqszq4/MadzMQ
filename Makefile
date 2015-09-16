@@ -4,12 +4,15 @@ CFLAGS = -g -O2 -Wall -Wextra
 USR_LOCAL = /usr/local
 
 MAD_BROKER = madbroker
+MAD_SERVER = madserver
 
 COMMON_FILE = src/bstar.c src/kvmsg.c
+KVMSG = src/kvmsg.c
+BSTAR = src/bstar.c
 
-CLEANUP = rm -f bin/$(MAD_BROKER) src/*.o
+CLEANUP = rm -f bin/$(MAD_BROKER) bin/$(MAD_SERVER) src/*.o
 
-all: $(MAD_BROKER)
+all: $(MAD_BROKER) $(MAD_SERVER)
 
 clean: 
 	$(CLEANUP)
@@ -21,4 +24,7 @@ LIBS = -lzmq -lczmq -luuid
 ZMQ_INCLUDES = -I/usr/local/zeromq/include -I/usr/local/czmq/include
 
 $(MAD_BROKER): src/$(MAD_BROKER).c $(COMMON_FILE)
+	$(CC) $(CFLAGS) $(ZMQ_INCLUDES) $(LDFLAGS) $(LIBS) $^ -o bin/$@
+
+$(MAD_SERVER): src/$(MAD_SERVER).c $(KVMSG)
 	$(CC) $(CFLAGS) $(ZMQ_INCLUDES) $(LDFLAGS) $(LIBS) $^ -o bin/$@
