@@ -7,7 +7,7 @@ MAD_BROKER = madbroker
 
 COMMON_FILE = src/bstar.c src/kvmsg.c
 
-CLEANUP = rm -f src/$(MAD_BROKER) src/*.o
+CLEANUP = rm -f bin/$(MAD_BROKER) src/*.o
 
 all: $(MAD_BROKER)
 

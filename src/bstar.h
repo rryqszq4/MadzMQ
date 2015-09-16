@@ -20,7 +20,7 @@ zloop_t *bstar_zloop(bstar_t *self);
 int bstar_voter(bstar_t *self, char *endpoint, int type, zloop_fn handler, void *arg);
 
 void bstar_new_master(bstar_t *self, zloop_fn handler, void *arg);
-vodi bstar_new_slave(bstar_t *self, zloop_fn handler, void *arg);
+void bstar_new_slave(bstar_t *self, zloop_fn handler, void *arg);
 
 void bstar_set_verbose(bstar_t *self, bool verbose);
 

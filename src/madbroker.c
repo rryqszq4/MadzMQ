@@ -1,3 +1,4 @@
+#include <uuid/uuid.h>
 #include "bstar.h"
 #include "kvmsg.h"
 
@@ -29,21 +30,21 @@ typedef struct {
 } mad_broker_t;
 
 int
-main (void)
+main (int argc, char *argv[])
 {
 	mad_broker_t *self = (mad_broker_t *) zmalloc(sizeof(mad_broker_t));
 
 	if (argc == 2 && streq(argv[1], "-p")){
 		zclock_log("I: primary active, waiting for backup (passive)");
 		self->bstar = bstar_new(BSTAR_PRIMARY, "tcp://127.0.0.1:5003", "tcp://127.0.0.1:5004");
-		bstar_vote(self->bstar, "tcp://127.0.0.1:5556", ZMQ_ROUTER, m_snapshots, self);
+		bstar_voter(self->bstar, "tcp://127.0.0.1:5556", ZMQ_ROUTER, m_snapshots, self);
 		self->port = 5556;
 		self->peer = 5566;
 		self->primary = true;
 	}else if (argc == 2 && streq(argv[1],"-b")){
 		zclock_log("I: backup passive, waiting for primary (active)");
 		self->bstar = bstar_new(BSTAR_BACKUP, "tcp://127.0.0.1:5004", "tcp://127.0.0.1:5003");
-		bstar_vote(self->bstar, "tcp://127.0.0.1:5566", ZMQ_ROUTER, m_snapshots, self);
+		bstar_voter(self->bstar, "tcp://127.0.0.1:5566", ZMQ_ROUTER, m_snapshots, self);
 		self->port = 5566;
 		self->peer = 5556;
 		self->primary = false;
@@ -61,7 +62,7 @@ main (void)
 	bstar_set_verbose(self->bstar, true);
 
 	self->publisher = zsocket_new(self->ctx, ZMQ_PUB);
-	self->collector = zsocket_new(self->ctx, ZMQ_PUB);
+	self->collector = zsocket_new(self->ctx, ZMQ_SUB);
 	zsocket_set_subscribe(self->collector, "");
 	zsocket_bind(self->publisher, "tcp://127.0.0.1:%d", self->port + 1);
 	zsocket_bind(self->collector, "tcp://127.0.0.1:%d", self->port + 2);
@@ -74,9 +75,9 @@ main (void)
 	bstar_new_passive(self->bstar, m_new_passive, self);
 
 	zmq_pollitem_t poller = {self->collector, 0, ZMQ_POLLIN};
-	zloop_poller(bstar_zloop(self->star), &poller, m_collector, self);
-	zloop_timer(bstar_zloop(self->star), 1000, 0, m_flush_ttl, self);
-	zloop_timer(bstar_zloop(self->star), 1000, 0, m_send_hugz, self);
+	zloop_poller(bstar_zloop(self->bstar), &poller, m_collector, self);
+	zloop_timer(bstar_zloop(self->bstar), 1000, 0, m_flush_ttl, self);
+	zloop_timer(bstar_zloop(self->bstar), 1000, 0, m_send_hugz, self);
 
 	bstar_start(self->bstar);
 
@@ -105,7 +106,7 @@ static int
 m_send_single(const char *key, void *data, void *args)
 {
 	kvroute_t *kvroute = (kvroute_t *)args;
-	kvmsg_t kvmsg = (kvmsg_t *)data;
+	kvmsg_t *kvmsg = (kvmsg_t *)data;
 	if (strlen(kvroute->subtree) <= strlen(kvmsg_key(kvmsg)) 
 		&& memcmp(kvroute->subtree, kvmsg_key(kvmsg), strlen(kvroute->subtree)) == 0){
 		zframe_send(&kvroute->identity, kvroute->socket, ZFRAME_MORE + ZFRAME_REUSE);
@@ -174,7 +175,7 @@ m_collector(zloop_t *loop, zmq_pollitem_t *poller, void *args)
 			kvmsg_send(kvmsg, self->publisher);
 			int ttl = atoi(kvmsg_get_prop(kvmsg, "ttl"));
 			if (ttl)
-				kvmsg_set_prop(kvmsg, "ttl", "%" PRID64, zclock_time() + ttl * 1000);
+				kvmsg_set_prop(kvmsg, "ttl", "%" PRId64, zclock_time() + ttl * 1000);
 			kvmsg_store(&kvmsg, self->kvmap);
 			zclock_log("I: publishing update=%d", (int)self->sequence);
 		}else {
@@ -194,7 +195,7 @@ m_flush_single(const char *key, void *data, void *args)
 
 	kvmsg_t *kvmsg = (kvmsg_t *)data;
 	int64_t ttl;
-	sscanf(kvmsg_get_prop(kvmsg, "ttl"), "%" PRID64, &ttl);
+	sscanf(kvmsg_get_prop(kvmsg, "ttl"), "%" PRId64, &ttl);
 	if (ttl && zclock_time() >= ttl){
 		kvmsg_set_sequence(kvmsg, ++self->sequence);
 		kvmsg_set_body(kvmsg, (byte *) "", 0);
