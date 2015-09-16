@@ -7,6 +7,7 @@ static int m_snapshots(zloop_t *loop, zmq_pollitem_t *poller, void *args);
 static int m_collector(zloop_t *loop, zmq_pollitem_t *poller, void *args);
 static int m_flush_ttl(zloop_t *loop, int timer_id, void *args);
 static int m_send_hugz(zloop_t *loop, int timer_id, void *args);
+static int m_publish_message(zloop_t *loop, int timer_id, void *args);
 static int m_new_active(zloop_t *loop, zmq_pollitem_t *poller, void *args);
 static int m_new_passive(zloop_t *loop, zmq_pollitem_t *poller, void *args);
 static int m_subscriber(zloop_t *loop, zmq_pollitem_t *poller, void *args);
@@ -59,7 +60,7 @@ main (int argc, char *argv[])
 
 	self->ctx = zctx_new();
 	self->pending = zlist_new();
-	bstar_set_verbose(self->bstar, true);
+	bstar_set_verbose(self->bstar, false);
 
 	self->publisher = zsocket_new(self->ctx, ZMQ_PUB);
 	self->collector = zsocket_new(self->ctx, ZMQ_SUB);
@@ -78,6 +79,7 @@ main (int argc, char *argv[])
 	zloop_poller(bstar_zloop(self->bstar), &poller, m_collector, self);
 	zloop_timer(bstar_zloop(self->bstar), 1000, 0, m_flush_ttl, self);
 	zloop_timer(bstar_zloop(self->bstar), 1000, 0, m_send_hugz, self);
+	zloop_timer(bstar_zloop(self->bstar), 1000, 0, m_publish_message, self);
 
 	bstar_start(self->bstar);
 
@@ -223,6 +225,19 @@ m_send_hugz(zloop_t *loop, int timer_id, void *args)
 	kvmsg_t *kvmsg = kvmsg_new(self->sequence);
 	kvmsg_set_key(kvmsg, "HUGZ");
 	kvmsg_set_body(kvmsg, (byte *)"", 0);
+	kvmsg_send(kvmsg, self->publisher);
+	kvmsg_destroy(&kvmsg);
+
+	return 0;
+}
+
+static int 
+m_publish_message(zloop_t *loop, int timer_id, void *args)
+{
+	mad_broker_t *self = (mad_broker_t *) args;
+	kvmsg_t *kvmsg = kvmsg_new(++self->sequence);
+	kvmsg_fmt_key(kvmsg, "%d", randof(10000));
+	kvmsg_fmt_body(kvmsg, "%d", randof(1000000));
 	kvmsg_send(kvmsg, self->publisher);
 	kvmsg_destroy(&kvmsg);
 
