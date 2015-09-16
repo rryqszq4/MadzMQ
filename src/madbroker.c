@@ -148,18 +148,41 @@ m_snapshots(zloop_t *loop, zmq_pollitem_t *poller, void *args)
 	return 0;
 }
 
+static int
+m_was_pending(mad_broker_t *self, kvmsg_t *kvmsg)
+{
+	kvmsg_t *held = (kvmsg_t *)zlist_first(self->pending);
+	while (held){
+		if (memcmp(kvmsg_uuid(kvmsg), kvmsg_uuid(held), sizeof(uuid_t)) == 0){
+			zlist_remove(self->pending, held);
+			return true;
+		}
+		held = (kvmsg_t *)zlist_next(self->pending);
+	}
+	return false;
+}
+
 static int 
 m_collector(zloop_t *loop, zmq_pollitem_t *poller, void *args)
 {
 	mad_broker_t *self = (mad_broker_t *)args;
+
+	kvmsg_t *kvmsg = kvmsg_recv(poller->socket);
 	if (kvmsg){
-		kvmsg_set_sequence(kvmsg, ++self->sequence);
-		kvmsg_send(kvmsg, self->publisher);
-		int ttl = atoi(kvmsg_get_prop(kvmsg, "ttl"));
-		if (ttl)
-			kvmsg_set_prop(kvmsg, "ttl", "%" PRID64, zclock_time() + ttl * 1000);
-		kvmsg_store(&kvmsg, self->kvmap);
-		zclock_log("I: publishing update=%d", (int)self->sequence);
+		if (self->active){
+			kvmsg_set_sequence(kvmsg, ++self->sequence);
+			kvmsg_send(kvmsg, self->publisher);
+			int ttl = atoi(kvmsg_get_prop(kvmsg, "ttl"));
+			if (ttl)
+				kvmsg_set_prop(kvmsg, "ttl", "%" PRID64, zclock_time() + ttl * 1000);
+			kvmsg_store(&kvmsg, self->kvmap);
+			zclock_log("I: publishing update=%d", (int)self->sequence);
+		}else {
+			if (m_was_pending(self, kvmsg))
+				kvmsg_destroy(&kvmsg);
+			else 
+				zlist_append(self->pending, kvmsg);
+		}
 	}
 	return 0;
 }
@@ -191,6 +214,104 @@ m_flush_ttl(zloop_t *loop, int timer_id, void *args)
 	return 0;
 }
 
+static int 
+m_send_hugz(zloop_t *loop, int timer_id, void *args)
+{
+	mad_broker_t *self = (mad_broker_t *) args;
+
+	kvmsg_t *kvmsg = kvmsg_new(self->sequence);
+	kvmsg_set_key(kvmsg, "HUGZ");
+	kvmsg_set_body(kvmsg, (byte *)"", 0);
+	kvmsg_send(kvmsg, self->publisher);
+	kvmsg_destroy(&kvmsg);
+
+	return 0;
+}
+
+static int 
+m_new_active(zloop_t *loop, zmq_pollitem_t *unused, void *args)
+{
+	mad_broker_t *self = (mad_broker_t *)args;
+
+	self->active = true;
+	self->passive = false;
+
+	zmq_pollitem_t poller = {self->subscriber, 0, ZMQ_POLLIN};
+	zloop_poller_end(bstar_zloop(self->bstar), &poller);
+
+	while (zlist_size(self->pending)){
+		kvmsg_t *kvmsg = (kvmsg_t *)zlist_pop(self->pending);
+		kvmsg_set_sequence(kvmsg, ++self->sequence);
+		kvmsg_send(kvmsg, self->publisher);
+		kvmsg_store(&kvmsg, self->kvmap);
+		zclock_log("I: publishing pending=%d", (int)self->sequence);
+	}
+	return 0;
+}
+
+static int 
+m_new_passive(zloop_t *loop, zmq_pollitem_t *unused, void *args)
+{
+	mad_broker_t *self = (mad_broker_t *)args;
+
+	zhash_destroy(&self->kvmap);
+	self->active = false;
+	self->passive = true;
+
+	zmq_pollitem_t poller = {self->subscriber, 0, ZMQ_POLLIN};
+	zloop_poller(bstar_zloop(self->bstar), &poller, m_subscriber, self);
+
+	return 0;
+}
+
+static int 
+m_subscriber(zloop_t *loop, zmq_pollitem_t *poller, void *args)
+{
+	mad_broker_t *self = (mad_broker_t *)args;
+
+	if (self->kvmap == NULL){
+		self->kvmap = zhash_new();
+		void *snapshot = zsocket_new(self->ctx, ZMQ_DEALER);
+		zsocket_connect(snapshot, "tcp://127.0.0.1:%d", self->peer);
+		zclock_log("I: asking for snapshot from: tcp://127.0.0.1:%d", self->peer);
+		zstr_sendm(snapshot, "ICANHAZ?");
+		zstr_send(snapshot, "");
+		while (true){
+			kvmsg_t *kvmsg = kvmsg_recv(snapshot);
+			if (!kvmsg)
+				break;
+			if (streq(kvmsg_key(kvmsg), "KTHXBAI")){
+				self->sequence = kvmsg_sequence(kvmsg);
+				kvmsg_destroy(&kvmsg);
+				break;
+			}
+			kvmsg_store(&kvmsg, self->kvmap);
+		}
+		zclock_log("I: received snapshot=%d", (int)self->sequence);
+		zsocket_destroy(self->ctx, snapshot);
+	}
+
+	kvmsg_t *kvmsg = kvmsg_recv(poller->socket);
+	if (!kvmsg)
+		return 0;
+
+	if (streq(kvmsg_key(kvmsg), "HUGZ")){
+		if (!m_was_pending(self, kvmsg)){
+			zlist_append(self->pending, kvmsg_dup(kvmsg));
+		}
+		if (kvmsg_sequence(kvmsg) > self->sequence){
+			self->sequence = kvmsg_sequence(kvmsg);
+			kvmsg_store(&kvmsg, self->kvmap);
+			zclock_log("I: received update=%d", (int)self->sequence);
+		}else {
+			kvmsg_destroy(&kvmsg);
+		}
+	}else {
+		kvmsg_destroy(&kvmsg);
+	}
+
+	return 0;
+}
 
 
 
