@@ -13,12 +13,19 @@ static int m_subscriber(zloop_t *loop, zmq_pollitem_t *poller, void *args);
 typedef struct {
 	zctx_t *ctx;
 	zhash_t *kvmap;
+	bstar_t *bstar;
 	zloop_t *loop;
 	int port;
+	int peer;
 	int64_t sequence;
 	void *snapshot;
 	void *publisher;
 	void *collector;
+	void *subscriber;
+	zlist_t *pending;
+	bool primary;
+	bool active;
+	bool passive;
 } mad_broker_t;
 
 int
@@ -26,33 +33,66 @@ main (void)
 {
 	mad_broker_t *self = (mad_broker_t *) zmalloc(sizeof(mad_broker_t));
 
-	self->port = 5556;
-	self->ctx = zctx_new();
-	self->kvmap = zhash_new();
-	self->loop = zloop_new();
-	zloop_set_verbose(self->loop, false);
+	if (argc == 2 && streq(argv[1], "-p")){
+		zclock_log("I: primary active, waiting for backup (passive)");
+		self->bstar = bstar_new(BSTAR_PRIMARY, "tcp://127.0.0.1:5003", "tcp://127.0.0.1:5004");
+		bstar_vote(self->bstar, "tcp://127.0.0.1:5556", ZMQ_ROUTER, m_snapshots, self);
+		self->port = 5556;
+		self->peer = 5566;
+		self->primary = true;
+	}else if (argc == 2 && streq(argv[1],"-b")){
+		zclock_log("I: backup passive, waiting for primary (active)");
+		self->bstar = bstar_new(BSTAR_BACKUP, "tcp://127.0.0.1:5004", "tcp://127.0.0.1:5003");
+		bstar_vote(self->bstar, "tcp://127.0.0.1:5566", ZMQ_ROUTER, m_snapshots, self);
+		self->port = 5566;
+		self->peer = 5556;
+		self->primary = false;
+	}else {
+		printf("Usage: madbroker {-p | -b}\n");
+		free(self);
+		exit(0);
+	}
 
-	self->snapshot = zsocket_new(self->ctx, ZMQ_ROUTER);
-	zsocket_bind(self->snapshot, "tcp://127.0.0.1:%d", self->port);
+	if (self->primary)
+		self->kvmap = zhash_new();
+
+	self->ctx = zctx_new();
+	self->pending = zlist_new();
+	bstar_set_verbose(self->bstar, true);
+
 	self->publisher = zsocket_new(self->ctx, ZMQ_PUB);
+	self->collector = zsocket_new(self->ctx, ZMQ_PUB);
+	zsocket_set_subscribe(self->collector, "");
 	zsocket_bind(self->publisher, "tcp://127.0.0.1:%d", self->port + 1);
-	self->collector = zsocket_new(self->ctx, ZMQ_PULL);
 	zsocket_bind(self->collector, "tcp://127.0.0.1:%d", self->port + 2);
 
-	zmq_pollitem_t poller = {0, 0, ZMQ_POLLIN};
-	poller.socket = self->snapshot;
-	zloop_poller(self->loop, &poller, m_snapshots, self);
-	poller.socket = self->collector;
-	zloop_poller(self->loop, &poller, m_collector, self);
-	zloop_time(self->loop, 1000, 0, m_flush_ttl, self);
+	self->subscriber = zsocket_new(self->ctx, ZMQ_SUB);
+	zsocket_set_subscribe(self->subscriber, "");
+	zsocket_connect(self->subscriber, "tcp://127.0.0.1:%d", self->peer + 1);
 
-	zloop_start(self->loop);
+	bstar_new_active(self->bstar, m_new_active, self);
+	bstar_new_passive(self->bstar, m_new_passive, self);
 
-	zloop_destroy(&self->loop);
+	zmq_pollitem_t poller = {self->collector, 0, ZMQ_POLLIN};
+	zloop_poller(bstar_zloop(self->star), &poller, m_collector, self);
+	zloop_timer(bstar_zloop(self->star), 1000, 0, m_flush_ttl, self);
+	zloop_timer(bstar_zloop(self->star), 1000, 0, m_send_hugz, self);
+
+	bstar_start(self->bstar);
+
+	while (zlist_size(self->pending)){
+		kvmsg_t *kvmsg = (kvmsg_t *)zlist_pop(self->pending);
+		kvmsg_destroy(&kvmsg);
+	}
+
+	zlist_destroy(&self->pending);
+	bstar_destroy(&self->bstar);
 	zhash_destroy(&self->kvmap);
 	zctx_destroy(&self->ctx);
 	free(self);
+
 	return 0;
+
 }
 
 typedef struct {
