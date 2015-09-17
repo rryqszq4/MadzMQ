@@ -85,7 +85,7 @@ main (int argc, char *argv[])
 	zloop_poller(bstar_zloop(self->bstar), &client_poller, m_client, self);
 	zloop_timer(bstar_zloop(self->bstar), 1000, 0, m_flush_ttl, self);
 	zloop_timer(bstar_zloop(self->bstar), 1000, 0, m_send_hugz, self);
-	zloop_timer(bstar_zloop(self->bstar), 1000, 0, m_publish_message, self);
+	//zloop_timer(bstar_zloop(self->bstar), 1000, 0, m_publish_message, self);
 
 	bstar_start(self->bstar);
 
@@ -120,6 +120,25 @@ m_client(zloop_t *loop, zmq_pollitem_t *poller, void *args)
 		return 1;
 	zclock_log("I: received client message:");
 	zmsg_dump(msg);
+
+	char *body_1 = zmsg_popstr(msg);
+	//zmsg_dump(msg);
+	char *body_2 = zmsg_popstr(msg);
+	//zmsg_dump(msg);
+	char *body_3 = zmsg_popstr(msg);
+	//zmsg_dump(msg);
+	char *body_4 = zmsg_popstr(msg);
+	//zmsg_dump(msg);
+	char *body_5 = zmsg_popstr(msg);
+	//zmsg_dump(msg);
+	//printf("%s %s %s %s %s\n", body_1, body_2, body_3, body_4, body_5);
+	kvmsg_t *kvmsg = kvmsg_new(++self->sequence);
+	kvmsg_fmt_key(kvmsg, "%s", body_4);
+	kvmsg_fmt_body(kvmsg, "%s", body_5);
+	kvmsg_set_prop(kvmsg, "msg", body_5);
+	kvmsg_send(kvmsg, self->publisher);
+	kvmsg_destroy(&kvmsg);
+
 	return 0;
 }
 
@@ -142,6 +161,7 @@ m_snapshots(zloop_t *loop, zmq_pollitem_t *poller, void *args)
 	mad_broker_t *self = (mad_broker_t *)args;
 
 	zframe_t *identity = zframe_recv(poller->socket);
+	zframe_print(identity, "");
 	if (identity){
 		char *request = zstr_recv(poller->socket);
 		char *subtree = NULL;

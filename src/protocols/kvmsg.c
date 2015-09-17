@@ -410,7 +410,7 @@ kvmsg_dump(kvmsg_t *self)
 			fprintf(stderr, "[");
 			char *prop = zlist_first(self->props);
 			while (prop){
-				fprintf(stderr, "%s;", prop);
+				fprintf(stderr, "%s", prop);
 				prop = zlist_next(self->props);
 			}
 			fprintf(stderr, "]");
