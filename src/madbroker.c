@@ -2,7 +2,7 @@
 #include "aio/bstar.h"
 #include "protocols/kvmsg.h"
 
-
+static int m_client(zloop_t *loop, zmq_pollitem_t *poller, void *args);
 static int m_snapshots(zloop_t *loop, zmq_pollitem_t *poller, void *args);
 static int m_collector(zloop_t *loop, zmq_pollitem_t *poller, void *args);
 static int m_flush_ttl(zloop_t *loop, int timer_id, void *args);
@@ -24,6 +24,7 @@ typedef struct {
 	void *publisher;
 	void *collector;
 	void *subscriber;
+	void *client;
 	zlist_t *pending;
 	bool primary;
 	bool active;
@@ -64,9 +65,12 @@ main (int argc, char *argv[])
 
 	self->publisher = zsocket_new(self->ctx, ZMQ_PUB);
 	self->collector = zsocket_new(self->ctx, ZMQ_SUB);
+	self->client = zsocket_new(self->ctx, ZMQ_ROUTER);
+
 	zsocket_set_subscribe(self->collector, "");
 	zsocket_bind(self->publisher, "tcp://127.0.0.1:%d", self->port + 1);
 	zsocket_bind(self->collector, "tcp://127.0.0.1:%d", self->port + 2);
+	zsocket_bind(self->client, "tcp://127.0.0.1:%d", 5555);
 
 	self->subscriber = zsocket_new(self->ctx, ZMQ_SUB);
 	zsocket_set_subscribe(self->subscriber, "");
@@ -77,6 +81,8 @@ main (int argc, char *argv[])
 
 	zmq_pollitem_t poller = {self->collector, 0, ZMQ_POLLIN};
 	zloop_poller(bstar_zloop(self->bstar), &poller, m_collector, self);
+	zmq_pollitem_t client_poller = {self->client, 0, ZMQ_POLLIN};
+	zloop_poller(bstar_zloop(self->bstar), &client_poller, m_client, self);
 	zloop_timer(bstar_zloop(self->bstar), 1000, 0, m_flush_ttl, self);
 	zloop_timer(bstar_zloop(self->bstar), 1000, 0, m_send_hugz, self);
 	zloop_timer(bstar_zloop(self->bstar), 1000, 0, m_publish_message, self);
@@ -103,6 +109,19 @@ typedef struct {
 	zframe_t *identity;
 	char *subtree;
 } kvroute_t;
+
+static int 
+m_client(zloop_t *loop, zmq_pollitem_t *poller, void *args)
+{
+	mad_broker_t *self = (mad_broker_t *)args;
+
+	zmsg_t *msg = zmsg_recv(self->client);
+	if (!msg)
+		return 1;
+	zclock_log("I: received client message:");
+	zmsg_dump(msg);
+	return 0;
+}
 
 static int
 m_send_single(const char *key, void *data, void *args)
