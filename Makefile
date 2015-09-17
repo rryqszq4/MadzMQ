@@ -6,9 +6,9 @@ USR_LOCAL = /usr/local
 MAD_BROKER = madbroker
 MAD_SERVER = madserver
 
-COMMON_FILE = src/bstar.c src/kvmsg.c
-KVMSG = src/kvmsg.c
-BSTAR = src/bstar.c
+COMMON_FILE = src/aio/bstar.c src/protocols/kvmsg.c
+KVMSG = src/protocols/kvmsg.c
+BSTAR = src/aio/bstar.c
 
 CLEANUP = rm -f bin/$(MAD_BROKER) bin/$(MAD_SERVER) src/*.o
 
