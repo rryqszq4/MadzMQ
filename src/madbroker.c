@@ -1,6 +1,6 @@
 #include <uuid/uuid.h>
-#include "bstar.h"
-#include "kvmsg.h"
+#include "aio/bstar.h"
+#include "protocols/kvmsg.h"
 
 
 static int m_snapshots(zloop_t *loop, zmq_pollitem_t *poller, void *args);

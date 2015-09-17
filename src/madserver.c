@@ -1,4 +1,4 @@
-#include "kvmsg.h"
+#include "protocols/kvmsg.h"
 #define SUBTREE "/madserver/"
 
 int main (void)
