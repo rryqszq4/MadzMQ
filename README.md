@@ -1,5 +1,5 @@
 # MadzMQ
-MadzMQ是基于libzmq+czmq实现的高性能，高可用的消息队列
+**MadzMQ**是基于**libzmq** + **czmq**实现的高性能，高可用的消息队列
 
 ##架构设计
 ```
@@ -10,7 +10,7 @@ MadzMQ是基于libzmq+czmq实现的高性能，高可用的消息队列
 '--------------------'
           |
           |
-         |1|
+         [1]
           |
           |
           v
@@ -23,7 +23,7 @@ MadzMQ是基于libzmq+czmq实现的高性能，高可用的消息队列
 '-----+
    |
    |
-  |2|
+  [2]
    |
    |
    v
@@ -34,6 +34,6 @@ MadzMQ是基于libzmq+czmq实现的高性能，高可用的消息队列
 *--------------------*
 ```
 
-*1.madclient通过ZMQ_DEALER模式异步给madbroker发送消息，madbroker通过ZMQ_ROUTER模式异步接收消息
-*2.madbroker担当消息发布者，通过ZMQ_PUB模式发布消息；madserver作为消息订阅者，通过ZMQ_SUB模式订阅消息
+-[1].madclient通过ZMQ_DEALER模式异步给madbroker发送消息，madbroker通过ZMQ_ROUTER模式异步接收消息
+-[2].madbroker担当消息发布者，通过ZMQ_PUB模式发布消息；madserver作为消息订阅者，通过ZMQ_SUB模式订阅消息
 
