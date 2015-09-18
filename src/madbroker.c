@@ -29,6 +29,7 @@ typedef struct {
 	bool primary;
 	bool active;
 	bool passive;
+	zlist_t *queue;
 } mad_broker_t;
 
 int
@@ -61,13 +62,16 @@ main (int argc, char *argv[])
 
 	self->ctx = zctx_new();
 	self->pending = zlist_new();
+	self->queue = zlist_new();
+
 	bstar_set_verbose(self->bstar, false);
 
 	self->publisher = zsocket_new(self->ctx, ZMQ_PUB);
-	self->collector = zsocket_new(self->ctx, ZMQ_SUB);
+	self->collector = zsocket_new(self->ctx, ZMQ_PULL);
 	self->client = zsocket_new(self->ctx, ZMQ_ROUTER);
 
-	zsocket_set_subscribe(self->collector, "");
+	//zsocket_set_subscribe(self->collector, "");
+	
 	zsocket_bind(self->publisher, "tcp://127.0.0.1:%d", self->port + 1);
 	zsocket_bind(self->collector, "tcp://127.0.0.1:%d", self->port + 2);
 	zsocket_bind(self->client, "tcp://127.0.0.1:%d", 5555);
@@ -95,6 +99,7 @@ main (int argc, char *argv[])
 	}
 
 	zlist_destroy(&self->pending);
+	zlist_destroy(&self->queue);
 	bstar_destroy(&self->bstar);
 	zhash_destroy(&self->kvmap);
 	zctx_destroy(&self->ctx);
@@ -136,6 +141,8 @@ m_client(zloop_t *loop, zmq_pollitem_t *poller, void *args)
 	kvmsg_fmt_key(kvmsg, "%s", body_4);
 	kvmsg_fmt_body(kvmsg, "%s", body_5);
 	kvmsg_set_prop(kvmsg, "msg", body_5);
+	zlist_push(self->queue,kvmsg);
+	printf("queue size is %d\n", zlist_size(self->queue));
 	kvmsg_send(kvmsg, self->publisher);
 	kvmsg_destroy(&kvmsg);
 
