@@ -12,3 +12,15 @@ struct _mbroker_t
 	mbstats_t *stats;
 	zloop_t *loop;
 };
+
+mbroker_t *
+mbroker_new()
+{
+	mbroker_t *this;
+	this = (mbroker_t) zmalloc(sizeof(mbroker_t));
+
+	this->ctx = zctx_new();
+	this->loop = zloop_new();
+
+	return this;
+}
