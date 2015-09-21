@@ -24,3 +24,17 @@ mbroker_new()
 
 	return this;
 }
+
+void
+mbroker_destroy(mbroker_t **this_p)
+{
+	assert(this_p);
+	if (*this_p){
+		mbroker_t *this = *this_p;
+		zloop_destroy(&this->loop);
+		zctx_destroy(&this->ctx);
+		free(this);
+		*this_p = NULL;
+	}
+}
+
