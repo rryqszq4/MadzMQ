@@ -1,16 +1,7 @@
 #include "mbroute.h"
 
-struct _mbroute_t {
-	zctx_t *ctx;
-	char *host;
-	int port;
-	void *socket;
-	int64_t recv_hits;
-	int64_t recv_misses;
-};
-
 mbroute_t *
-mbroute_new(zctx_t *ctx, char *host, port)
+mbroute_new(zctx_t *ctx, char *host, int port)
 {
 	mbroute_t *this;
 	this = (mbroute_t *) zmalloc(sizeof(mbroute_t));
@@ -35,7 +26,7 @@ mbroute_destroy(mbroute_t *this)
 int
 mbroute_bind(mbroute_t *this)
 {
-	return zsocket_bind(this, "tcp://%s:%d", this->host, this->port);
+	return zsocket_bind(this, "tcp://127.0.0.1:%d", this->port);
 }
 
 zmsg_t *
