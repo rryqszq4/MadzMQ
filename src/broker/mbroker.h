@@ -36,7 +36,7 @@ void mbroker_loop_poller(mbroker_t *this, zloop_fn handler);
 void mbroker_loop_timer(mbroker_t *this, size_t delay, size_t time,  zloop_timer_fn handler);
 void mbroker_looper(mbroker_t *this);
 
-int client_route_recv_handle(mbroker_t *this);
+int client_route_recv_handle(zloop_t *loop, zmq_pollitem_t *poller, void *args);
 
 #ifdef __cplusplus
 }

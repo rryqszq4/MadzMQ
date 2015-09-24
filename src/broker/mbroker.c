@@ -11,9 +11,9 @@ mbroker_new()
 	this->ctx = zctx_new();
 	this->loop = zloop_new();
 	this->client_route = mbroute_new(this->ctx, MBROUTE_CLIENT_HOST, MBROUTE_CLIENT_PORT);
-	//mbroute_bind(this->client_route);
-	zsocket_bind(this->client_route, "tcp://127.0.0.1:5555");
-
+	
+	int port = mbroute_bind(this->client_route);
+	//printf("port:%d\n", port);
 	return this;
 }
 
@@ -52,9 +52,9 @@ mbroker_destroy(mbroker_t **this_p)
 }
 
 int
-client_route_recv_handle(mbroker_t *this)
+client_route_recv_handle(zloop_t *loop, zmq_pollitem_t *poller, void *args)
 {
-	printf("123\n");
+	mbroker_t *this = (mbroker_t *)args;
 	zmsg_t *msg = mbroute_recv(this->client_route);
 
 	zmsg_dump(msg);

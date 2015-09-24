@@ -26,7 +26,7 @@ mbroute_destroy(mbroute_t *this)
 int
 mbroute_bind(mbroute_t *this)
 {
-	return zsocket_bind(this, "tcp://127.0.0.1:%d", this->port);
+	return zsocket_bind(this->socket, "tcp://127.0.0.1:%d", this->port);
 }
 
 zmsg_t *
