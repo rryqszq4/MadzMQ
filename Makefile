@@ -11,7 +11,7 @@ MAD_BROKER_1 = madbroker1
 COMMON_FILE = src/aio/bstar.c src/protocols/kvmsg.c
 KVMSG = src/protocols/kvmsg.c
 BSTAR = src/aio/bstar.c
-BROKER = src/broker/mbroker.c src/broker/mbroute.c src/broker/mbqueue.c
+BROKER = src/broker/mbroker.c src/broker/mbroute.c src/broker/mbpublish.c src/broker/mbqueue.c
 
 
 CLEANUP = rm -f bin/$(MAD_BROKER) bin/$(MAD_SERVER) bin/$(MAD_CLIENT) bin/$(MAD_BROKER_1) src/*.o
