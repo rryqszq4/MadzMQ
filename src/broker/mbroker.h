@@ -22,13 +22,23 @@ struct _mbroker_t
 	mbroute_t *service_route;
 	void *service;
 	//mbstats_t *stats;
+	zhash_t *kvmap;
+	int64_t sequence;
 	zloop_t *loop;
 	bool verbose;
 };
 
+typedef struct {
+	void *socket;
+	zframe_t *identity;
+	char *subtree;
+} kvroute_t;
+
 #define MBROKER_HOST 			"127.0.0.1"
 #define MBROUTE_CLIENT_HOST		"127.0.0.1"
 #define MBROUTE_CLIENT_PORT		5555
+#define SNAPSHOT_HOST			"127.0.0.1"
+#define SNAPSHOT_PORT			5556
 #define MBPUBLISH_HOST			"127.0.0.1"
 #define MBPUBLISH_PORT			5557
 
@@ -39,7 +49,10 @@ void mbroker_loop_poller(mbroker_t *this, zloop_fn handler);
 void mbroker_loop_timer(mbroker_t *this, size_t delay, size_t time,  zloop_timer_fn handler);
 void mbroker_looper(mbroker_t *this);
 
+static int s_send_single(const char *key, void *data, void *args);
+
 int client_route_recv_handle(zloop_t *loop, zmq_pollitem_t *poller, void *args);
+int snapshot_handle(zloop_t *loop, zmq_pollitem_t *pooler, void *args);
 int publish_send_handle(zloop_t *loop, zmq_pollitem_t *poller, void *args);
 
 #ifdef __cplusplus
