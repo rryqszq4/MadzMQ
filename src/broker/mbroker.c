@@ -11,8 +11,12 @@ mbroker_new()
 	this->ctx = zctx_new();
 	this->loop = zloop_new();
 	this->client_route = mbroute_new(this->ctx, MBROUTE_CLIENT_HOST, MBROUTE_CLIENT_PORT);
+	this->publish = mbpublish_new(this->ctx, MBPUBLISH_HOST, MBPUBLISH_PORT);
 	
-	int port = mbroute_bind(this->client_route);
+	mbroute_bind(this->client_route);
+
+	int port = mbpublish_bind(this->publish);
+	//printf("socket:%p\n", this->publish->socket);
 	//printf("port:%d\n", port);
 	return this;
 }
@@ -61,4 +65,23 @@ client_route_recv_handle(zloop_t *loop, zmq_pollitem_t *poller, void *args)
 
 	return 0;
 }
+
+int 
+publish_send_handle(zloop_t *loop, zmq_pollitem_t *poller, void *args)
+{
+	mbroker_t *this = (mbroker_t *)args;
+	int rc = 0;
+
+
+	kvmsg_t *kvmsg = kvmsg_new(1);
+	kvmsg_set_key(kvmsg, "key");
+	rc = mbpublish_send(this->publish, kvmsg);
+	kvmsg_dump(kvmsg);
+	return rc;
+}
+
+
+
+
+
 

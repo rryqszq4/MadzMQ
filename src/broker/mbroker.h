@@ -7,6 +7,7 @@ extern "C" {
 
 #include "czmq.h"
 #include "mbroute.h"
+#include "mbpublish.h"
 #include "mbqueue.h"
 
 typedef struct _mbroker_t mbroker_t;
@@ -16,7 +17,7 @@ struct _mbroker_t
 	zctx_t *ctx;
 	mbroute_t *client_route;
 	mbqueue_t *queue;
-	//mbpublish_t *publish;
+	mbpublish_t *publish;
 	void *snapshot;
 	mbroute_t *service_route;
 	void *service;
@@ -28,6 +29,8 @@ struct _mbroker_t
 #define MBROKER_HOST 			"127.0.0.1"
 #define MBROUTE_CLIENT_HOST		"127.0.0.1"
 #define MBROUTE_CLIENT_PORT		5555
+#define MBPUBLISH_HOST			"127.0.0.1"
+#define MBPUBLISH_PORT			5557
 
 mbroker_t *mbroker_new();
 void mbroker_destroy(mbroker_t **this_p);
@@ -37,6 +40,7 @@ void mbroker_loop_timer(mbroker_t *this, size_t delay, size_t time,  zloop_timer
 void mbroker_looper(mbroker_t *this);
 
 int client_route_recv_handle(zloop_t *loop, zmq_pollitem_t *poller, void *args);
+int publish_send_handle(zloop_t *loop, zmq_pollitem_t *poller, void *args);
 
 #ifdef __cplusplus
 }

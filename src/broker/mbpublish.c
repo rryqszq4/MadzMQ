@@ -10,8 +10,8 @@ mbpublish_new(zctx_t *ctx, char *host, int port)
 	this->host = host;
 	this->port = port;
 	this->socket = zsocket_new(this->ctx, ZMQ_PUB);
-	this->send_hits;
-	this->send_misses;
+	this->send_hits = 0;
+	this->send_misses = 0;
 
 	return this;
 }
@@ -23,12 +23,6 @@ mbpublish_destroy(mbpublish_t *this)
 		free(this);
 		this = NULL;
 	}
-}
-
-void 
-mbpublish_set_topic(mbpublish_t *this, char *topic)
-{
-	zsocket_set_subscribe(this->socket, topic);
 }
 
 int 
@@ -48,7 +42,8 @@ int
 mbpublish_send(mbpublish_t *this, kvmsg_t *kvmsg)
 {
 	int rc = 0;
-	rc = kvmsg_send(kvmsg, this->publish);
+	//printf("send socket: %p\n", this->socket);
+	kvmsg_send(kvmsg, this->socket);
 	return rc;
 }
 

@@ -403,6 +403,7 @@ kvmsg_dump(kvmsg_t *self)
 		}
 		size_t size = kvmsg_size(self);
 		byte *body = kvmsg_body(self);
+		//byte *body = kvmsg_uuid(self);
 		fprintf(stderr, "[seq:%" PRId64 "]", kvmsg_sequence(self));
 		fprintf(stderr, "[key:%s]", kvmsg_key(self));
 		fprintf(stderr, "[size:%zd] ", size);
