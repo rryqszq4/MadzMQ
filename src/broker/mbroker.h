@@ -18,7 +18,7 @@ struct _mbroker_t
 	mbroute_t *client_route;
 	mbqueue_t *queue;
 	mbpublish_t *publish;
-	void *snapshot;
+	mbroute_t *snapshot;
 	mbroute_t *service_route;
 	void *service;
 	//mbstats_t *stats;
@@ -42,14 +42,17 @@ typedef struct {
 #define MBPUBLISH_HOST			"127.0.0.1"
 #define MBPUBLISH_PORT			5557
 
+#define CLIENT_ROUTE_MODE		1
+#define SNAPSHOT_MODE			2
+
 mbroker_t *mbroker_new();
 void mbroker_destroy(mbroker_t **this_p);
 
-void mbroker_loop_poller(mbroker_t *this, zloop_fn handler);
+void mbroker_loop_poller(mbroker_t *this, zloop_fn handler, int mode);
 void mbroker_loop_timer(mbroker_t *this, size_t delay, size_t time,  zloop_timer_fn handler);
 void mbroker_looper(mbroker_t *this);
 
-static int s_send_single(const char *key, void *data, void *args);
+int s_send_single(const char *key, void *data, void *args);
 
 int client_route_recv_handle(zloop_t *loop, zmq_pollitem_t *poller, void *args);
 int snapshot_handle(zloop_t *loop, zmq_pollitem_t *pooler, void *args);

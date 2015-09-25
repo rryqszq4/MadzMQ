@@ -11,6 +11,8 @@ mbroker_new()
 	this->ctx = zctx_new();
 	this->kvmap = zhash_new();
 	this->loop = zloop_new();
+	this->sequence = 1;
+
 	//与客户端通信对象
 	this->client_route = mbroute_new(this->ctx, MBROUTE_CLIENT_HOST, MBROUTE_CLIENT_PORT);
 	//快照对象
@@ -29,10 +31,13 @@ mbroker_new()
 }
 
 void
-mbroker_loop_poller(mbroker_t *this, zloop_fn handler)
+mbroker_loop_poller(mbroker_t *this, zloop_fn handler, int mode)
 {
 	zmq_pollitem_t poller = { 0, 0, ZMQ_POLLIN};
-	poller.socket = this->client_route->socket;
+	if (mode == CLIENT_ROUTE_MODE)
+		poller.socket = this->client_route->socket;
+	else if (mode == SNAPSHOT_MODE)
+		poller.socket = this->snapshot->socket;
 	zloop_poller(this->loop, &poller, handler, this);
 }
 
@@ -90,7 +95,7 @@ publish_send_handle(zloop_t *loop, zmq_pollitem_t *poller, void *args)
 	return rc;
 }
 
-static int
+int
 s_send_single(const char *key, void *data, void *args)
 {
 	kvroute_t *kvroute = (kvroute_t *)args;
@@ -106,11 +111,14 @@ s_send_single(const char *key, void *data, void *args)
 int 
 snapshot_handle(zloop_t *loop, zmq_pollitem_t *pooler, void *args)
 {
+
 	mbroker_t *this = (mbroker_t *)args;
 	zframe_t *identity = zframe_recv(this->snapshot->socket);
+	zframe_print(identity, "");
 
 	if (identity){
 		char *request = zstr_recv(this->snapshot->socket);
+		printf("%s\n", request);
 		char *subtree = NULL;
 		if (streq(request, "ICANHAZ?")){
 			free(request);
@@ -126,6 +134,13 @@ snapshot_handle(zloop_t *loop, zmq_pollitem_t *pooler, void *args)
 			//现在发送带有序号的END消息
 			zclock_log("I: sending snapshot=%d", (int)this->sequence);
 			zframe_send(&identity, this->snapshot->socket, ZFRAME_MORE);
+
+			kvmsg_t *kvmsg = kvmsg_new(this->sequence);
+			kvmsg_set_key(kvmsg, "KTHXBAI");
+			kvmsg_set_body(kvmsg, (byte *)"body", 4);
+			//kvmsg_dump();
+			kvmsg_send(kvmsg, this->snapshot->socket);
+			kvmsg_destroy(&kvmsg);
 			free(subtree);
 		}
 		zframe_destroy(&identity);
