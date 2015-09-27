@@ -4,8 +4,8 @@
 
 #define KVMSG_KEY_MAX 	255
 
-#define FRAME_KEY 		0
-#define FRAME_SEQ 		1
+#define FRAME_KEY 		1
+#define FRAME_SEQ 		0
 #define FRAME_UUID		2
 #define FRAME_PROPS		3
 #define FRAME_BODY 		4
