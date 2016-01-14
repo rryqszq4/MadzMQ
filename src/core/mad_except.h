@@ -4,9 +4,9 @@
 #ifndef _MAD_EXCEPT_H_INCLUDED_
 #define _MAD_EXCEPT_H_INCLUDED_
 
-typedef _mad_except_t mad_except_t;
+typedef struct _mad_except_t mad_except_t;
 
-typedef _mad_except_frame_t mad_except_frame_t;
+typedef struct _mad_except_frame_t mad_except_frame_t;
 
 enum {
 	mad_except_entered=0,
@@ -22,8 +22,8 @@ void mad_except_raise(const mad_except_t *e, const char *file, int line);
 
 #define RAISE(e) mad_except_raise(&(e), __FILE__, __LINE__)
 
-#define RERAISE mad_except_raise(mad_except_frame_t.exception, \
-	mad_except_frame_t.file, mad_except_frame_t.line)
+#define RERAISE mad_except_raise(except_frame.exception, \
+	except_frame.file, except_frame.line)
 
 #define RETURN switch (mad_except_stack = mad_except_stack->prev, 0) default; return
 
@@ -37,7 +37,7 @@ void mad_except_raise(const mad_except_t *e, const char *file, int line);
 
 #define EXCEPT(e)	\
 		if (mad_except_flag == mad_except_entered) mad_except_stack = mad_except_stack->prev;	\
-	}else if (mad_except_frame_t.exception == &(e)){	\
+	}else if (except_frame.exception == &(e)){	\
 		mad_except_flag = mad_except_handled;
 
 #define ELSE \
@@ -56,5 +56,6 @@ void mad_except_raise(const mad_except_t *e, const char *file, int line);
 	} if (mad_except_flag == mad_except_raised) RERAISE;	\
 } while (0)
 
+void mad_except_test();
 
 #endif
