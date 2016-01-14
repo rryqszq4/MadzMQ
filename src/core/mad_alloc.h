@@ -4,7 +4,7 @@
 #ifndef _MAD_ALLOC_H_INCLUDED_
 #define _MAD_ALLOC_H_INCLUDED_
 
-#include "except.h"
+#include "mad_except.h"
 
 extern const mad_except_t mad_alloc_failed;
 

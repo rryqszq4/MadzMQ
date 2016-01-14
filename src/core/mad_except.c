@@ -64,10 +64,15 @@ mad_except_test()
 			assert(0);
 		}
 	EXCEPT(mad_assert_failed)
-		RERAISE;
+		printf("catch exception :%s\n", mad_assert_failed.reason);
+		;
 	END_TRY;
 
-	free(p);
+	if (p){
+		free(p);
+	}
+
+	printf("%s() end\n", __FUNCTION__);
 	return ;
 
 }
